@@ -49,7 +49,9 @@ impl BenchmarkClient for HelixDBClient {
     async fn create_u32(&self, key: u32, val: Value) -> Result<()> {
         let data = extract_string_field(&val)?;
         let body = json!({"id": key.to_string(), "data": data});
-        self.make_request("POST", "/create_record", Some(body)).await?;
+        println!("body: {:?}", &body);
+        let res = self.make_request("POST", "/create_record", Some(body)).await?;
+        println!("res: {}", res);
         Ok(())
     }
 
@@ -62,7 +64,8 @@ impl BenchmarkClient for HelixDBClient {
 
     async fn read_u32(&self, key: u32) -> Result<()> {
         let body = json!({"id": key.to_string()});
-        self.make_request("POST", "/read_record", Some(body)).await?;
+        let res = self.make_request("POST", "/read_record", Some(body)).await?;
+        println!("id: {}, res: {}", key, res);
         Ok(())
     }
 

@@ -50,7 +50,7 @@ async fn run_benchmark(
     operation: &str,
     count: usize,
     key_type: KeyType,
-) -> Result<Duration> {
+) -> Result<(Duration, f64, f64)> {
     let start = Instant::now();
     let sample_value = json!({"data": "test_value"});
 
@@ -188,32 +188,39 @@ async fn run_benchmark(
         _ => return Err(anyhow::anyhow!("Unsupported operation: {}", operation)),
     }
 
-    Ok(start.elapsed())
+    let total_time = start.elapsed();
+    let avg_time_per_request = total_time.as_secs_f64() / count as f64;
+    let throughput = count as f64 / total_time.as_secs_f64();
+
+    Ok((total_time, avg_time_per_request, throughput))
 }
 
 async fn run_all_benchmarks(
     client: &dyn BenchmarkClient,
     count: usize,
     key_type: KeyType,
-) -> Result<Vec<(String, Duration)>> {
-    let operations = vec!["create", "read", "update", "delete", "scan"];
+) -> Result<Vec<(String, Duration, f64, f64)>> {
     let mut results = Vec::new();
 
-    let create_duration = run_benchmark(client, "create", count, key_type).await?;
-    results.push(("create".to_string(), create_duration));
+    let (create_duration, create_avg_time, create_throughput) =
+        run_benchmark(client, "create", count, key_type).await?;
+    results.push(("create".to_string(), create_duration, create_avg_time, create_throughput));
 
-    let read_duration = run_benchmark(client, "read", count, key_type).await?;
-    results.push(("read".to_string(), read_duration));
+    let (read_duration, read_avg_time, read_throughput) =
+        run_benchmark(client, "read", count, key_type).await?;
+    results.push(("read".to_string(), read_duration, read_avg_time, read_throughput));
 
-    // TODO: throwing error (connection closed before message completed) on helixdb
-    //let update_duration = run_benchmark(client, "update", count, key_type).await?;
-    //results.push(("update".to_string(), update_duration));
+    let (update_duration, update_avg_time, update_throughput) =
+        run_benchmark(client, "update", count, key_type).await?;
+    results.push(("update".to_string(), update_duration, update_avg_time, update_throughput));
 
-    let delete_duration = run_benchmark(client, "delete", count, key_type).await?;
-    results.push(("delete".to_string(), delete_duration));
+    let (delete_duration, delete_avg_time, delete_throughput) =
+        run_benchmark(client, "delete", count, key_type).await?;
+    results.push(("delete".to_string(), delete_duration, delete_avg_time, delete_throughput));
 
-    let scan_duration = run_benchmark(client, "scan", count, key_type).await?;
-    results.push(("scan".to_string(), scan_duration));
+    let (scan_duration, scan_avg_time, scan_throughput) =
+        run_benchmark(client, "scan", count, key_type).await?;
+    results.push(("scan".to_string(), scan_duration, scan_avg_time, scan_throughput));
 
     Ok(results)
 }
@@ -272,28 +279,38 @@ async fn main() -> Result<()> {
                     count,
                     key_type_name(key_type)
                 );
-                println!("{:-<50}", "");
-                println!("{:<10} | {:<15} | {:<15}", "Operation", "Duration", "Ops/s");
-                println!("{:-<50}", "");
-                for (op, duration) in results {
+                println!("{:-<80}", "");
+                println!(
+                    "{:<10} | {:<15} | {:<15} | {:<15}",
+                    "Operation", "Total Time", "Avg Time/Req (ms)", "Throughput (ops/s)"
+                );
+                println!("{:-<80}", "");
+                for (op, duration, avg_time, throughput) in results {
                     println!(
-                        "{:<10} | {:<15} | {:<15.2}",
+                        "{:<10} | {:<15} | {:<15.6} | {:<15.2}",
                         op,
                         format!("{:?}", duration),
-                        count as f64 / duration.as_secs_f64()
+                        avg_time * 1000.0,
+                        throughput
                     );
                 }
             } else {
-                let duration = run_benchmark(&*client, &operation, count, key_type).await?;
+                let (duration, avg_time, throughput) =
+                    run_benchmark(&*client, &operation, count, key_type).await?;
                 println!(
-                    "Benchmark: {} {} operations on {} took {:?} ({:.2} ops/s)",
+                    "Benchmark: {} {} operations on {}:\n\
+                    Total Time: {:?}\n\
+                    Avg Time/Request: {:.6} ms\n\
+                    Throughput: {:.2} ops/s",
                     operation,
                     count,
                     database_name(database),
                     duration,
-                    count as f64 / duration.as_secs_f64()
+                    avg_time * 1000.0,
+                    throughput
                 );
-            }}
+            }
+        }
     }
 
     Ok(())
