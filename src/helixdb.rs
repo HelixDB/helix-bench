@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::types::{Benchmark, BenchmarkClient, BenchmarkEngine, Projection, Scan};
 use anyhow::Result;
 use async_trait::async_trait;
@@ -8,6 +10,7 @@ use crate::utils::extract_string_field;
 struct HelixDBClient {
     endpoint: String,
     client: Client,
+    id_mapping: HashMap<u32, String>,
 }
 
 impl HelixDBClient {
@@ -15,6 +18,7 @@ impl HelixDBClient {
         Self {
             endpoint,
             client: Client::new(),
+            id_mapping: HashMap::new(),
         }
     }
 
@@ -22,7 +26,6 @@ impl HelixDBClient {
         let url = format!("{}{}", self.endpoint, path);
         let request = match method {
             "POST" => self.client.post(&url),
-            "GET" => self.client.get(&url),
             _ => unreachable!(),
         };
         let request = if let Some(body) = body {
@@ -49,16 +52,14 @@ impl BenchmarkClient for HelixDBClient {
     async fn create_u32(&self, key: u32, val: Value) -> Result<()> {
         let data = extract_string_field(&val)?;
         let body = json!({"id": key.to_string(), "data": data});
-        println!("body: {:?}", &body);
         let res = self.make_request("POST", "/create_record", Some(body)).await?;
-        println!("res: {}", res);
         Ok(())
     }
 
     async fn create_string(&self, key: String, val: Value) -> Result<()> {
         let data = extract_string_field(&val)?;
         let body = json!({"id": key, "data": data});
-        self.make_request("POST", "/create_record", Some(body)).await?;
+        let res = self.make_request("POST", "/create_record", Some(body)).await?;
         Ok(())
     }
 

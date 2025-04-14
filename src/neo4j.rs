@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::types::{Benchmark, BenchmarkClient, BenchmarkEngine, Projection, Scan};
 use crate::utils::extract_string_field;
 use anyhow::Result;

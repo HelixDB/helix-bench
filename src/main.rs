@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use serde_json::json;
 use indicatif::{ProgressBar, ProgressStyle};
+use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use tokio;
 
@@ -53,7 +54,6 @@ async fn run_benchmark(
 ) -> Result<(Duration, f64, f64)> {
     let start = Instant::now();
     let sample_value = json!({"data": "test_value"});
-
     match (operation.to_lowercase().as_str(), key_type) {
         ("create", KeyType::U32) => {
             let pb = ProgressBar::new(count as u64);
