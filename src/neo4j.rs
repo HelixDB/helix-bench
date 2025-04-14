@@ -1,11 +1,17 @@
-/*
-struct Neo4jClient {
+use crate::types::{Benchmark, BenchmarkClient, BenchmarkEngine, Projection, Scan};
+use crate::utils::extract_string_field;
+use anyhow::Result;
+use async_trait::async_trait;
+use reqwest::Client;
+use serde_json::{json, Value};
+
+pub struct Neo4jClient {
     endpoint: String,
     client: Client,
 }
 
 impl Neo4jClient {
-    fn new(endpoint: String) -> Self {
+    pub fn new(endpoint: String) -> Self {
         Self {
             endpoint,
             client: Client::new(),
@@ -13,11 +19,17 @@ impl Neo4jClient {
     }
 
     async fn execute_cypher(&self, query: &str, params: Value) -> Result<Value> {
-        let url = format!("{}/db/data/transaction/commit", self.endpoint);
+        let url = format!("{}/db/neo4j/tx/commit", self.endpoint);
         let body = json!({
             "statements": [{"statement": query, "parameters": params}]
         });
-        let response = self.client.post(&url).json(&body).send().await?;
+        let response = self
+            .client
+            .post(&url)
+            .json(&body)
+            .basic_auth("neo4j", Some("neo4jtest"))
+            .send()
+            .await?;
         if response.status().is_success() {
             response.json::<Value>().await.map_err(Into::into)
         } else {
@@ -133,7 +145,7 @@ impl Neo4jClient {
 }
 
 // Engine for Neo4j
-struct Neo4jEngine {
+pub struct Neo4jEngine {
     endpoint: String,
 }
 
@@ -154,4 +166,3 @@ impl BenchmarkEngine for Neo4jEngine {
         Ok(Box::new(client))
     }
 }
-*/

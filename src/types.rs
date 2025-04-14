@@ -3,42 +3,42 @@ use async_trait::async_trait;
 use serde_json::Value;
 
 #[derive(Clone, Copy, PartialEq)]
-enum KeyType {
+pub enum KeyType {
     U32,
     String,
 }
 
 // Represents the database to benchmark
 #[derive(Clone, Copy, PartialEq)]
-enum Database {
+pub enum Database {
     HelixDB,
     Neo4j,
 }
 
 // Configuration for the benchmark
 #[derive(Clone)]
-struct Benchmark {
-    database: Database,
-    endpoint: Option<String>,
+pub struct Benchmark {
+    pub database: Database,
+    pub endpoint: Option<String>,
 }
 
 // Parameters for scan operations
 #[derive(Clone)]
-struct Scan {
-    limit: Option<usize>,
-    start: Option<usize>,
+pub struct Scan {
+    pub limit: Option<usize>,
+    pub start: Option<usize>,
     projection: Projection,
 }
 
 #[derive(Clone, Copy)]
-enum Projection {
+pub enum Projection {
     Id,
     Full,
     Count,
 }
 
 impl Scan {
-    fn new(limit: Option<usize>, start: Option<usize>, projection: Projection) -> Self {
+    pub fn new(limit: Option<usize>, start: Option<usize>, projection: Projection) -> Self {
         Self {
             limit,
             start,
@@ -46,14 +46,13 @@ impl Scan {
         }
     }
 
-    fn projection(&self) -> Result<Projection> {
+    pub fn projection(&self) -> Result<Projection> {
         Ok(self.projection)
     }
 }
 
-// Trait defining benchmark operations
 #[async_trait]
-trait BenchmarkClient {
+pub trait BenchmarkClient {
     async fn startup(&self) -> Result<()>;
     async fn create_u32(&self, key: u32, val: Value) -> Result<()>;
     async fn create_string(&self, key: String, val: Value) -> Result<()>;
@@ -67,9 +66,8 @@ trait BenchmarkClient {
     async fn scan_string(&self, scan: &Scan) -> Result<usize>;
 }
 
-// Trait for setting up the benchmark environment
 #[async_trait]
-trait BenchmarkEngine {
+pub trait BenchmarkEngine {
     async fn setup(options: &Benchmark) -> Result<Self>
     where
         Self: Sized;

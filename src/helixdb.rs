@@ -1,4 +1,9 @@
-
+use crate::types::{Benchmark, BenchmarkClient, BenchmarkEngine, Projection, Scan};
+use anyhow::Result;
+use async_trait::async_trait;
+use reqwest::Client;
+use serde_json::{json, Value};
+use crate::utils::extract_string_field;
 
 struct HelixDBClient {
     endpoint: String,
@@ -127,8 +132,7 @@ impl HelixDBClient {
     }
 }
 
-// Engine for HelixDB
-struct HelixDBEngine {
+pub struct HelixDBEngine {
     endpoint: String,
 }
 
@@ -149,4 +153,3 @@ impl BenchmarkEngine for HelixDBEngine {
         Ok(Box::new(client))
     }
 }
-
