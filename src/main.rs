@@ -84,6 +84,28 @@ async fn run_benchmark(
             }
             pb.finish_with_message("Create complete");
         }
+        ("bulk_create", KeyType::String) => {
+            let pb = ProgressBar::new(count as u64);
+            pb.set_style(
+                ProgressStyle::default_bar()
+                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Bulk Create")
+                .unwrap()
+                .progress_chars("##-"),
+            );
+            client.bulk_create_string(10000, sample_value.clone()).await?;
+            pb.finish_with_message("Bulk Create complete");
+        }
+        ("bulk_create", KeyType::U32) => {
+            let pb = ProgressBar::new(count as u64);
+            pb.set_style(
+                ProgressStyle::default_bar()
+                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Bulk Create")
+                .unwrap()
+                .progress_chars("##-"),
+            );
+            client.bulk_create_string(10000, sample_value.clone()).await?;
+            pb.finish_with_message("Bulk Create complete");
+        }
         ("read", KeyType::U32) => {
             let pb = ProgressBar::new(count as u64);
             pb.set_style(
@@ -222,6 +244,10 @@ async fn run_all_benchmarks(
         run_benchmark(client, "scan", count, key_type).await?;
     results.push(("scan".to_string(), scan_duration, scan_avg_time, scan_throughput));
 
+    let (bulk_create_duration, bulk_create_avg_time, bulk_create_throughput) =
+        run_benchmark(client, "bulk_create", count, key_type).await?;
+    results.push(("bulk_create".to_string(), bulk_create_duration, bulk_create_avg_time, bulk_create_throughput));
+
     Ok(results)
 }
 
@@ -310,6 +336,9 @@ async fn main() -> Result<()> {
                     throughput
                 );
             }
+            // count exisiting records
+            let count = client.count_records().await?;
+            println!("Existing records: {}", count);
         }
     }
 

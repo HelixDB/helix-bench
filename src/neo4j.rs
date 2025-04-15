@@ -5,7 +5,7 @@ use crate::utils::extract_string_field;
 use anyhow::Result;
 use async_trait::async_trait;
 use reqwest::Client;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 pub struct Neo4jClient {
     endpoint: String,
@@ -63,6 +63,14 @@ impl BenchmarkClient for Neo4jClient {
         Ok(())
     }
 
+    async fn bulk_create_string(&self, count: usize, val: Value) -> Result<()> {
+        let data = extract_string_field(&val)?;
+        let query = "UNWIND range(1, $count) as i CREATE (n:Record {id: toString(i), data: $data})";
+        let params = json!({"count": count, "data": data});
+        self.execute_cypher(query, params).await?;
+        Ok(())
+    }
+
     async fn read_u32(&self, key: u32) -> Result<()> {
         let query = "MATCH (n:Record {id: $id}) RETURN n";
         let params = json!({"id": key.to_string()});
@@ -113,6 +121,15 @@ impl BenchmarkClient for Neo4jClient {
 
     async fn scan_string(&self, scan: &Scan) -> Result<usize> {
         self.scan(scan).await
+    }
+
+    async fn count_records(&self) -> Result<usize> {
+        let query = "MATCH (n:Record) RETURN count(n)";
+        let params = json!({});
+        let response = self.execute_cypher(query, params).await?;
+        Ok(response["results"][0]["data"][0]["row"][0]
+            .as_u64()
+            .unwrap_or(0) as usize)
     }
 }
 

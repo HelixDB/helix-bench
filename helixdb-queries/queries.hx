@@ -6,6 +6,8 @@ QUERY create_record(id: String, data: String) =>
     })
     RETURN record
 
+
+
 QUERY read_record(id: String) =>
     record <- N<Record>(id)
     RETURN record

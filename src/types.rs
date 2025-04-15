@@ -58,6 +58,7 @@ pub trait BenchmarkClient {
     async fn startup(&self) -> Result<()>;
     async fn create_u32(&self, key: u32, val: Value) -> Result<()>;
     async fn create_string(&self, key: String, val: Value) -> Result<()>;
+    async fn bulk_create_string(&self, count: usize, val: Value) -> Result<()>;
     async fn read_u32(&self, key: u32) -> Result<()>;
     async fn read_string(&self, key: String) -> Result<()>;
     async fn update_u32(&self, key: u32, val: Value) -> Result<()>;
@@ -66,6 +67,7 @@ pub trait BenchmarkClient {
     async fn delete_string(&self, key: String) -> Result<()>;
     async fn scan_u32(&self, scan: &Scan) -> Result<usize>;
     async fn scan_string(&self, scan: &Scan) -> Result<usize>;
+    async fn count_records(&self) -> Result<usize>;
 }
 
 #[async_trait]

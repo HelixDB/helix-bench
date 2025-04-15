@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
 use crate::types::{Benchmark, BenchmarkClient, BenchmarkEngine, Projection, Scan};
+use crate::utils::extract_string_field;
 use anyhow::Result;
 use async_trait::async_trait;
 use reqwest::Client;
-use serde_json::{json, Value};
-use crate::utils::extract_string_field;
+use serde_json::{Value, json};
 
 struct HelixDBClient {
     endpoint: String,
@@ -52,53 +52,73 @@ impl BenchmarkClient for HelixDBClient {
     async fn create_u32(&self, key: u32, val: Value) -> Result<()> {
         let data = extract_string_field(&val)?;
         let body = json!({"id": key.to_string(), "data": data});
-        let res = self.make_request("POST", "/create_record", Some(body)).await?;
+        let res = self
+            .make_request("POST", "/create_record", Some(body))
+            .await?;
         Ok(())
     }
 
     async fn create_string(&self, key: String, val: Value) -> Result<()> {
         let data = extract_string_field(&val)?;
         let body = json!({"id": key, "data": data});
-        let res = self.make_request("POST", "/create_record", Some(body)).await?;
+        let res = self
+            .make_request("POST", "/create_record", Some(body))
+            .await?;
         Ok(())
     }
 
+    async fn bulk_create_string(&self, count: usize, val: Value) -> Result<()> {
+        let data = extract_string_field(&val)?;
+        let body = json!({"count": count, "data": data});
+        let res = self
+            .make_request("POST", "/bulk_create_records", Some(body))
+            .await?;
+        Ok(())
+    }
+    
+
     async fn read_u32(&self, key: u32) -> Result<()> {
         let body = json!({"id": key.to_string()});
-        let res = self.make_request("POST", "/read_record", Some(body)).await?;
-        println!("id: {}, res: {}", key, res);
+        let res = self
+            .make_request("POST", "/read_record", Some(body))
+            .await?;
         Ok(())
     }
 
     async fn read_string(&self, key: String) -> Result<()> {
         let body = json!({"id": key});
-        self.make_request("POST", "/read_record", Some(body)).await?;
+        self.make_request("POST", "/read_record", Some(body))
+            .await?;
         Ok(())
     }
 
     async fn update_u32(&self, key: u32, val: Value) -> Result<()> {
         let data = extract_string_field(&val)?;
         let body = json!({"id": key.to_string(), "data": data});
-        self.make_request("POST", "/update_record", Some(body)).await?;
+        self.make_request("POST", "/update_record", Some(body))
+            .await?;
         Ok(())
     }
 
     async fn update_string(&self, key: String, val: Value) -> Result<()> {
         let data = extract_string_field(&val)?;
         let body = json!({"id": key, "data": data});
-        self.make_request("POST", "/update_record", Some(body)).await?;
+        self.make_request("POST", "/update_record", Some(body))
+            .await?;
         Ok(())
     }
 
     async fn delete_u32(&self, key: u32) -> Result<()> {
         let body = json!({"id": key.to_string()});
-        self.make_request("POST", "/delete_record", Some(body)).await?;
+        self.make_request("POST", "/delete_record", Some(body))
+            .await?;
         Ok(())
     }
 
     async fn delete_string(&self, key: String) -> Result<()> {
         let body = json!({"id": key});
-        self.make_request("POST", "/delete_record", Some(body)).await?;
+        self.make_request("POST", "/delete_record", Some(body))
+            .await?;
         Ok(())
     }
 
@@ -108,6 +128,13 @@ impl BenchmarkClient for HelixDBClient {
 
     async fn scan_string(&self, scan: &Scan) -> Result<usize> {
         self.scan(scan).await
+    }
+
+    async fn count_records(&self) -> Result<usize> {
+        let res = self
+            .make_request("POST", "/count_records", None)
+            .await?;
+        Ok(res.as_i64().unwrap_or(0) as usize)
     }
 }
 
@@ -121,10 +148,7 @@ impl HelixDBClient {
                 let response = self
                     .make_request("POST", "/scan_records", Some(body))
                     .await?;
-                let count = response
-                    .as_array()
-                    .map(|arr| arr.len())
-                    .unwrap_or(0);
+                let count = response.as_array().map(|arr| arr.len()).unwrap_or(0);
                 Ok(count)
             }
             Projection::Count => {
