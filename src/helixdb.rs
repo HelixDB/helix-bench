@@ -5,7 +5,7 @@ use crate::utils::extract_string_field;
 use anyhow::Result;
 use async_trait::async_trait;
 use reqwest::Client;
-use serde_json::{Value, json};
+use serde_json::{json, Number, Value};
 
 struct HelixDBClient {
     endpoint: String,
@@ -134,7 +134,9 @@ impl BenchmarkClient for HelixDBClient {
         let res = self
             .make_request("POST", "/count_records", None)
             .await?;
-        Ok(res.as_i64().unwrap_or(0) as usize)
+        // get count field from res
+        let count = res.get("count").unwrap();
+        Ok(count.as_u64().unwrap_or(0) as usize)
     }
 }
 
