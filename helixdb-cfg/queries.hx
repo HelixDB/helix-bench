@@ -7,7 +7,6 @@ QUERY create_record(id: String, data: String) =>
     RETURN record
 
 
-
 QUERY read_record(id: String) =>
     record <- N<Record>(id)
     RETURN record
@@ -20,24 +19,12 @@ QUERY update_record(id: String, data: String) =>
 
 QUERY delete_record(id: String) =>
     DROP N<Record>(id)
-    RETURN NONE
+    RETURN "NONE"
 
-QUERY scan_records(limit: Integer, offset: Integer) =>
+QUERY scan_records(limit: I32, offset: I32) =>
     records <- N<Record>::RANGE(offset, limit)
     RETURN records
 
 QUERY count_records() =>
     count <- N<Record>::COUNT
     RETURN count
-
-// QUERY CreateUserWithRole(roleType: String) =>
-//     newUser <- AddN<User>
-//     role <- N<Role>::WHERE(_::{role_type}::EQ("userRole"))
-//     roleRelationship <- AddE<HasRole>::From(newUser)::To(role)
-//     RETURN newUser
-// 
-// QUERY CreateRoleType() =>
-//     role <- AddN<RoleType>({
-//         role_type: "userRole"
-//     })
-//     RETURN role
