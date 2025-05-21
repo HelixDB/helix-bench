@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use serde_json::json;
 use indicatif::{ProgressBar, ProgressStyle};
+use serde_json::json;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use tokio;
@@ -11,9 +11,9 @@ mod neo4j;
 mod types;
 mod utils;
 
-use crate::types::BenchmarkEngine;
 use crate::helixdb::HelixDBEngine;
 use crate::neo4j::Neo4jEngine;
+use crate::types::BenchmarkEngine;
 use crate::types::{Benchmark, BenchmarkClient, Database, KeyType, Projection, Scan};
 
 #[derive(Parser)]
@@ -32,7 +32,7 @@ enum Commands {
         #[arg(default_value = "all")]
         operation: String,
         /// Number of operations to perform
-        #[arg(short, long, default_value_t = 1000)]
+        #[arg(short, long, default_value_t = 2_000_000)]
         count: usize,
         /// Key type: u32 or string
         #[arg(short, long, default_value = "u32")]
@@ -59,9 +59,9 @@ async fn run_benchmark(
             let pb = ProgressBar::new(count as u64);
             pb.set_style(
                 ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Create")
-                .unwrap()
-                .progress_chars("##-"),
+                    .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Create")
+                    .unwrap()
+                    .progress_chars("##-"),
             );
             for i in 0..count as u32 {
                 client.create_u32(i, sample_value.clone()).await?;
@@ -73,9 +73,9 @@ async fn run_benchmark(
             let pb = ProgressBar::new(count as u64);
             pb.set_style(
                 ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Create")
-                .unwrap()
-                .progress_chars("##-"),
+                    .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Create")
+                    .unwrap()
+                    .progress_chars("##-"),
             );
             for i in 0..count {
                 let key = format!("key{}", i);
@@ -88,31 +88,53 @@ async fn run_benchmark(
             let pb = ProgressBar::new(count as u64);
             pb.set_style(
                 ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Bulk Create")
-                .unwrap()
-                .progress_chars("##-"),
+                    .template(
+                        "[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Bulk Create",
+                    )
+                    .unwrap()
+                    .progress_chars("##-"),
             );
-            client.bulk_create_string(10000, sample_value.clone()).await?;
+            client
+                .bulk_create_string(count, sample_value.clone())
+                .await?;
             pb.finish_with_message("Bulk Create complete");
         }
         ("bulk_create", KeyType::U32) => {
             let pb = ProgressBar::new(count as u64);
             pb.set_style(
                 ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Bulk Create")
-                .unwrap()
-                .progress_chars("##-"),
+                    .template(
+                        "[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Bulk Create",
+                    )
+                    .unwrap()
+                    .progress_chars("##-"),
             );
-            client.bulk_create_string(10000, sample_value.clone()).await?;
+            client
+                .bulk_create_string(count, sample_value.clone())
+                .await?;
             pb.finish_with_message("Bulk Create complete");
         }
+        ("huge_traversal", KeyType::U32) => {
+            let pb = ProgressBar::new(count as u64);
+            pb.set_style(
+                ProgressStyle::default_bar()
+                    .template(
+                        "[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Huge Traversal",
+                    )
+                    .unwrap()
+                    .progress_chars("##-"),
+            );
+            client.huge_traversal(count).await?;
+            pb.finish_with_message("Huge Traversal complete");
+        }
+
         ("read", KeyType::U32) => {
             let pb = ProgressBar::new(count as u64);
             pb.set_style(
                 ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Read")
-                .unwrap()
-                .progress_chars("##-"),
+                    .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Read")
+                    .unwrap()
+                    .progress_chars("##-"),
             );
             for i in 0..count as u32 {
                 client.read_u32(i).await?;
@@ -124,9 +146,9 @@ async fn run_benchmark(
             let pb = ProgressBar::new(count as u64);
             pb.set_style(
                 ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Read")
-                .unwrap()
-                .progress_chars("##-"),
+                    .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Read")
+                    .unwrap()
+                    .progress_chars("##-"),
             );
             for i in 0..count {
                 let key = format!("key{}", i);
@@ -139,9 +161,9 @@ async fn run_benchmark(
             let pb = ProgressBar::new(count as u64);
             pb.set_style(
                 ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Update")
-                .unwrap()
-                .progress_chars("##-"),
+                    .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Update")
+                    .unwrap()
+                    .progress_chars("##-"),
             );
             let updated_value = json!({"data": "updated_value"});
             for i in 0..count as u32 {
@@ -154,9 +176,9 @@ async fn run_benchmark(
             let pb = ProgressBar::new(count as u64);
             pb.set_style(
                 ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Update")
-                .unwrap()
-                .progress_chars("##-"),
+                    .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Update")
+                    .unwrap()
+                    .progress_chars("##-"),
             );
             let updated_value = json!({"data": "updated_value"});
             for i in 0..count {
@@ -170,9 +192,9 @@ async fn run_benchmark(
             let pb = ProgressBar::new(count as u64);
             pb.set_style(
                 ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Delete")
-                .unwrap()
-                .progress_chars("##-"),
+                    .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Delete")
+                    .unwrap()
+                    .progress_chars("##-"),
             );
             for i in 0..count as u32 {
                 client.delete_u32(i).await?;
@@ -184,9 +206,9 @@ async fn run_benchmark(
             let pb = ProgressBar::new(count as u64);
             pb.set_style(
                 ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Delete")
-                .unwrap()
-                .progress_chars("##-"),
+                    .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Delete")
+                    .unwrap()
+                    .progress_chars("##-"),
             );
             for i in 0..count {
                 let key = format!("key{}", i);
@@ -199,8 +221,8 @@ async fn run_benchmark(
             let pb = ProgressBar::new_spinner();
             pb.set_style(
                 ProgressStyle::default_spinner()
-                .template("{spinner:.green} [{elapsed_precise}] Running scan...")
-                .unwrap(),
+                    .template("{spinner:.green} [{elapsed_precise}] Running scan...")
+                    .unwrap(),
             );
             pb.enable_steady_tick(Duration::from_millis(100));
             let scan = Scan::new(Some(count), None, Projection::Full);
@@ -224,29 +246,43 @@ async fn run_all_benchmarks(
 ) -> Result<Vec<(String, Duration, f64, f64)>> {
     let mut results = Vec::new();
 
-    let (create_duration, create_avg_time, create_throughput) =
-        run_benchmark(client, "create", count, key_type).await?;
-    results.push(("create".to_string(), create_duration, create_avg_time, create_throughput));
+    // let (create_duration, create_avg_time, create_throughput) =
+    //     run_benchmark(client, "create", count, key_type).await?;
+    // results.push(("create".to_string(), create_duration, create_avg_time, create_throughput));
 
-    let (read_duration, read_avg_time, read_throughput) =
-        run_benchmark(client, "read", count, key_type).await?;
-    results.push(("read".to_string(), read_duration, read_avg_time, read_throughput));
+    // let (read_duration, read_avg_time, read_throughput) =
+    //     run_benchmark(client, "read", count, key_type).await?;
+    // results.push(("read".to_string(), read_duration, read_avg_time, read_throughput));
 
-    let (update_duration, update_avg_time, update_throughput) =
-        run_benchmark(client, "update", count, key_type).await?;
-    results.push(("update".to_string(), update_duration, update_avg_time, update_throughput));
+    // let (update_duration, update_avg_time, update_throughput) =
+    //     run_benchmark(client, "update", count, key_type).await?;
+    // results.push(("update".to_string(), update_duration, update_avg_time, update_throughput));
 
-    let (delete_duration, delete_avg_time, delete_throughput) =
-        run_benchmark(client, "delete", count, key_type).await?;
-    results.push(("delete".to_string(), delete_duration, delete_avg_time, delete_throughput));
+    // let (delete_duration, delete_avg_time, delete_throughput) =
+    //     run_benchmark(client, "delete", count, key_type).await?;
+    // results.push(("delete".to_string(), delete_duration, delete_avg_time, delete_throughput));
 
-    let (scan_duration, scan_avg_time, scan_throughput) =
-        run_benchmark(client, "scan", count, key_type).await?;
-    results.push(("scan".to_string(), scan_duration, scan_avg_time, scan_throughput));
+    // let (scan_duration, scan_avg_time, scan_throughput) =
+    //     run_benchmark(client, "scan", count, key_type).await?;
+    // results.push(("scan".to_string(), scan_duration, scan_avg_time, scan_throughput));
 
     let (bulk_create_duration, bulk_create_avg_time, bulk_create_throughput) =
-        run_benchmark(client, "bulk_create", count, key_type).await?;
-    results.push(("bulk_create".to_string(), bulk_create_duration, bulk_create_avg_time, bulk_create_throughput));
+        run_benchmark(client, "bulk_create", count, KeyType::U32).await?;
+    results.push((
+        "bulk_create".to_string(),
+        bulk_create_duration,
+        bulk_create_avg_time,
+        bulk_create_throughput,
+    ));
+
+    let (huge_traversal_duration, huge_traversal_avg_time, huge_traversal_throughput) =
+        run_benchmark(client, "huge_traversal", count, KeyType::U32).await?;
+    results.push((
+        "huge_traversal".to_string(),
+        huge_traversal_duration,
+        huge_traversal_avg_time,
+        huge_traversal_throughput,
+    ));
 
     Ok(results)
 }

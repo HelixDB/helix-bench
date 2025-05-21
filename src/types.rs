@@ -59,6 +59,7 @@ pub trait BenchmarkClient {
     async fn create_u32(&self, key: u32, val: Value) -> Result<()>;
     async fn create_string(&self, key: String, val: Value) -> Result<()>;
     async fn bulk_create_string(&self, count: usize, val: Value) -> Result<()>;
+    async fn huge_traversal(&self, count: usize) -> Result<()>;
     async fn read_u32(&self, key: u32) -> Result<()>;
     async fn read_string(&self, key: String) -> Result<()>;
     async fn update_u32(&self, key: u32, val: Value) -> Result<()>;

@@ -63,11 +63,102 @@ impl BenchmarkClient for Neo4jClient {
         Ok(())
     }
 
+    /**
+         * ub fn insert(input: &HandlerInput, response: &mut Response) -> Result<(), GraphError> {
+        let mut remapping_vals: RefCell<HashMap<String, ResponseRemapping>> =
+            RefCell::new(HashMap::new());
+        let db = Arc::clone(&input.graph.storage);
+        let mut txn = db.graph_env.write_txn().unwrap();
+
+        let mut nodes = Vec::with_capacity(400_000);
+        for i in 0..400_000 {
+            let node = db
+                .create_node(&mut txn, "person", props! { "name" => i}, None, None)
+                .unwrap();
+            nodes.push(node);
+
+            for _ in 0..3 {
+                let random_node = &nodes[rand::rng().random_range(0..nodes.len())];
+                db
+                    .create_edge(
+                        &mut txn,
+                        "knows",
+                        &nodes[i as usize].id,
+                        &random_node.id,
+                        props!(),
+                    )
+                    .unwrap();
+            }
+            if i % 1000 == 0 {
+                println!("created {} nodes", i);
+            }
+        }
+        txn.commit()?;
+        Ok(())
+    }
+
+         */
     async fn bulk_create_string(&self, count: usize, val: Value) -> Result<()> {
         let data = extract_string_field(&val)?;
-        let query = "UNWIND range(1, $count) as i CREATE (n:Record {id: toString(i), data: $data})";
+        let query = "
+            UNWIND range(0, $count - 1) as i
+            CREATE (n:Record {name: i, data: $data})
+            WITH n, i
+            MATCH (other:Record)
+            WHERE other <> n AND id(other) >= 0 AND id(other) < i
+            WITH n, collect(other) as others
+            UNWIND range(1,3) as _
+            WITH n, others, toInteger(rand() * size(others)) as idx
+            WHERE idx < size(others)
+            MATCH (other) WHERE other = others[idx]
+            CREATE (n)-[:KNOWS]->(other)";
         let params = json!({"count": count, "data": data});
         self.execute_cypher(query, params).await?;
+        Ok(())
+    }
+
+
+    /**
+    * let traversal = G::new(Arc::clone(&db), &txn)
+           .n()
+           .out_e("knows")
+           .to_n()
+           .out("knows")
+           .filter_ref(|val, _| {
+               if let Ok(TraversalVal::Node(node)) = val {
+                   if let Some(value) = node.check_property("name") {
+                       match value {
+                           Value::I32(name) => return *name < 1000,
+                           _ => return false,
+                       }
+                   } else {
+                       return false;
+                   }
+               } else {
+                   return false;
+               }
+           })
+           .out("knows")
+           .out("knows")
+           .out("knows")
+           .out("knows")
+           .dedup()
+           .range(0, 100)
+           .collect_to::<Vec<_>>();
+    */
+    async fn huge_traversal(&self, count: usize) -> Result<()> {
+        let query = r#"
+        MATCH (start:Record)
+        MATCH path = (start)-[:KNOWS]->()-[:KNOWS]->(n2:Record)
+        WHERE n2.name < 1000
+        MATCH (n2)-[:KNOWS]->()-[:KNOWS]->()-[:KNOWS]->()-[:KNOWS]->(n6)
+        WITH DISTINCT n6 as result
+        RETURN result
+        LIMIT 100
+        "#;
+        let params = json!({});  // count parameter not needed
+        let response = self.execute_cypher(query, params).await?;
+        println!("Huge traversal result: {:?}", response);
         Ok(())
     }
 
@@ -114,6 +205,7 @@ impl BenchmarkClient for Neo4jClient {
         self.execute_cypher(query, params).await?;
         Ok(())
     }
+    
 
     async fn scan_u32(&self, scan: &Scan) -> Result<usize> {
         self.scan(scan).await
@@ -124,9 +216,10 @@ impl BenchmarkClient for Neo4jClient {
     }
 
     async fn count_records(&self) -> Result<usize> {
-        let query = "MATCH (n:Record) RETURN count(n)";
+        let query = "MATCH (n) RETURN count(n) as count";
         let params = json!({});
         let response = self.execute_cypher(query, params).await?;
+        println!("Count records result: {:?}", response);
         Ok(response["results"][0]["data"][0]["row"][0]
             .as_u64()
             .unwrap_or(0) as usize)

@@ -33,7 +33,12 @@ impl HelixDBClient {
         } else {
             request
         };
-        let response = request.send().await?;
+        let response = request.send().await.map_err(
+            |e| {
+                println!("Request failed: {}", e);
+                anyhow::anyhow!("Request failed: {}", e)
+            }
+        )?;
         if response.status().is_success() {
             response.json::<Value>().await.map_err(Into::into)
         } else {
@@ -71,11 +76,20 @@ impl BenchmarkClient for HelixDBClient {
         let data = extract_string_field(&val)?;
         let body = json!({"count": count, "data": data});
         let res = self
-            .make_request("POST", "/bulk_create_records", Some(body))
+            .make_request("POST", "/insert", Some(body))
             .await?;
+        println!("Bulk create result: {:?}", res);
         Ok(())
     }
-    
+
+    async fn huge_traversal(&self, count: usize) -> Result<()> {
+        let body = json!({"count": count});
+        let res = self
+            .make_request("POST", "/huge_traversal", Some(body))
+            .await?;
+        println!("Huge traversal result: {:?}", res);
+        Ok(())
+    }
 
     async fn read_u32(&self, key: u32) -> Result<()> {
         let body = json!({"id": key.to_string()});
