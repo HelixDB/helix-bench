@@ -1,11 +1,7 @@
 // CRUD operations for benchmarking
-QUERY create_record(id: ID, data: String) =>
-    record <- AddN<Record>({
-        id: id,
-        data: data
-    })
+QUERY create_record(data: String) =>
+    record <- AddN<Record>({ data: data })
     RETURN record
-
 
 QUERY read_record(id: ID) =>
     record <- N<Record>(id)

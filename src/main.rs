@@ -1,8 +1,6 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use indicatif::{ProgressBar, ProgressStyle};
 use serde_json::json;
-use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use tokio;
 
@@ -14,7 +12,7 @@ mod utils;
 use crate::helixdb::HelixDBEngine;
 use crate::neo4j::Neo4jEngine;
 use crate::types::BenchmarkEngine;
-use crate::types::{Benchmark, BenchmarkClient, Database, KeyType, Projection, Scan};
+use crate::types::{Benchmark, BenchmarkClient, Database};
 
 #[derive(Parser)]
 #[command(name = "helix-bench")]
@@ -32,11 +30,8 @@ enum Commands {
         #[arg(default_value = "all")]
         operation: String,
         /// Number of operations to perform
-        #[arg(short, long, default_value_t = 2_000_000)]
+        #[arg(short, long, default_value_t = 500_000)]
         count: usize,
-        /// Key type: u32 or string
-        #[arg(short, long, default_value = "u32")]
-        key_type: String,
         /// Database: helixdb, neo4j or others
         #[arg(short, long, default_value = "helixdb")]
         database: String,
@@ -47,59 +42,21 @@ enum Commands {
 }
 
 async fn run_benchmark(
-    client: &dyn BenchmarkClient,
+    client: &mut dyn BenchmarkClient,
     operation: &str,
     count: usize,
-    key_type: KeyType,
 ) -> Result<(Duration, f64, f64)> {
     let start = Instant::now();
-    let sample_value = json!({"data": "test_value"});
-    match (operation.to_lowercase().as_str(), key_type) {
-        ("create", KeyType::U32) => {
-            let pb = ProgressBar::new(count as u64);
-            pb.set_style(
-                ProgressStyle::default_bar()
-                    .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Create")
-                    .unwrap()
-                    .progress_chars("##-"),
-            );
-            for i in 0..count as u32 {
-                client.create_u32(i, sample_value.clone()).await?;
-                pb.inc(1);
-            }
-            pb.finish_with_message("Create complete");
-        }
-        ("create", KeyType::String) => {
-            let pb = ProgressBar::new(count as u64);
-            pb.set_style(
-                ProgressStyle::default_bar()
-                    .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Create")
-                    .unwrap()
-                    .progress_chars("##-"),
-            );
-            for i in 0..count {
-                let key = format!("key{}", i);
-                client.create_string(key, sample_value.clone()).await?;
-                pb.inc(1);
-            }
-            pb.finish_with_message("Create complete");
-        }
-        ("bulk_create", KeyType::String) => {
-            let pb = ProgressBar::new(count as u64);
-            pb.set_style(
-                ProgressStyle::default_bar()
-                    .template(
-                        "[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Bulk Create",
-                    )
-                    .unwrap()
-                    .progress_chars("##-"),
-            );
-            client
-                .bulk_create_string(count, sample_value.clone())
-                .await?;
-            pb.finish_with_message("Bulk Create complete");
-        }
-        ("bulk_create", KeyType::U32) => {
+    match operation.to_lowercase().as_str() {
+        "create" => client.create_records(count).await?,
+        "read" => client.read_records().await?,
+        "update" => client.update_records().await?,
+        "delete" => client.delete_records().await?,
+        "scan" => client.scan_records().await?,
+        _ => return Err(anyhow::anyhow!("Unsupported operation: {}", operation)),
+
+        /*
+        "bulk_create" => {
             let pb = ProgressBar::new(count as u64);
             pb.set_style(
                 ProgressStyle::default_bar()
@@ -127,109 +84,7 @@ async fn run_benchmark(
             client.huge_traversal(count).await?;
             pb.finish_with_message("Huge Traversal complete");
         }
-
-        ("read", KeyType::U32) => {
-            let pb = ProgressBar::new(count as u64);
-            pb.set_style(
-                ProgressStyle::default_bar()
-                    .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Read")
-                    .unwrap()
-                    .progress_chars("##-"),
-            );
-            for i in 0..count as u32 {
-                client.read_u32(i).await?;
-                pb.inc(1);
-            }
-            pb.finish_with_message("Read complete");
-        }
-        ("read", KeyType::String) => {
-            let pb = ProgressBar::new(count as u64);
-            pb.set_style(
-                ProgressStyle::default_bar()
-                    .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Read")
-                    .unwrap()
-                    .progress_chars("##-"),
-            );
-            for i in 0..count {
-                let key = format!("key{}", i);
-                client.read_string(key).await?;
-                pb.inc(1);
-            }
-            pb.finish_with_message("Read complete");
-        }
-        ("update", KeyType::U32) => {
-            let pb = ProgressBar::new(count as u64);
-            pb.set_style(
-                ProgressStyle::default_bar()
-                    .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Update")
-                    .unwrap()
-                    .progress_chars("##-"),
-            );
-            let updated_value = json!({"data": "updated_value"});
-            for i in 0..count as u32 {
-                client.update_u32(i, updated_value.clone()).await?;
-                pb.inc(1);
-            }
-            pb.finish_with_message("Update complete");
-        }
-        ("update", KeyType::String) => {
-            let pb = ProgressBar::new(count as u64);
-            pb.set_style(
-                ProgressStyle::default_bar()
-                    .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Update")
-                    .unwrap()
-                    .progress_chars("##-"),
-            );
-            let updated_value = json!({"data": "updated_value"});
-            for i in 0..count {
-                let key = format!("key{}", i);
-                client.update_string(key, updated_value.clone()).await?;
-                pb.inc(1);
-            }
-            pb.finish_with_message("Update complete");
-        }
-        ("delete", KeyType::U32) => {
-            let pb = ProgressBar::new(count as u64);
-            pb.set_style(
-                ProgressStyle::default_bar()
-                    .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Delete")
-                    .unwrap()
-                    .progress_chars("##-"),
-            );
-            for i in 0..count as u32 {
-                client.delete_u32(i).await?;
-                pb.inc(1);
-            }
-            pb.finish_with_message("Delete complete");
-        }
-        ("delete", KeyType::String) => {
-            let pb = ProgressBar::new(count as u64);
-            pb.set_style(
-                ProgressStyle::default_bar()
-                    .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Delete")
-                    .unwrap()
-                    .progress_chars("##-"),
-            );
-            for i in 0..count {
-                let key = format!("key{}", i);
-                client.delete_string(key).await?;
-                pb.inc(1);
-            }
-            pb.finish_with_message("Delete complete");
-        }
-        ("scan", KeyType::U32 | KeyType::String) => {
-            let pb = ProgressBar::new_spinner();
-            pb.set_style(
-                ProgressStyle::default_spinner()
-                    .template("{spinner:.green} [{elapsed_precise}] Running scan...")
-                    .unwrap(),
-            );
-            pb.enable_steady_tick(Duration::from_millis(100));
-            let scan = Scan::new(Some(count), None, Projection::Full);
-            client.scan_u32(&scan).await?;
-            pb.finish_with_message("Scan complete");
-        }
-        _ => return Err(anyhow::anyhow!("Unsupported operation: {}", operation)),
+        */
     }
 
     let total_time = start.elapsed();
@@ -240,32 +95,32 @@ async fn run_benchmark(
 }
 
 async fn run_all_benchmarks(
-    client: &dyn BenchmarkClient,
+    client: &mut dyn BenchmarkClient,
     count: usize,
-    key_type: KeyType,
 ) -> Result<Vec<(String, Duration, f64, f64)>> {
     let mut results = Vec::new();
 
-    // let (create_duration, create_avg_time, create_throughput) =
-    //     run_benchmark(client, "create", count, key_type).await?;
-    // results.push(("create".to_string(), create_duration, create_avg_time, create_throughput));
+    let (create_duration, create_avg_time, create_throughput) =
+        run_benchmark(client, "create", count).await?;
+    results.push(("create".to_string(), create_duration, create_avg_time, create_throughput));
 
-    // let (read_duration, read_avg_time, read_throughput) =
-    //     run_benchmark(client, "read", count, key_type).await?;
-    // results.push(("read".to_string(), read_duration, read_avg_time, read_throughput));
+    //let (read_duration, read_avg_time, read_throughput) =
+    //    run_benchmark(client, "read", count).await?;
+    //results.push(("read".to_string(), read_duration, read_avg_time, read_throughput));
 
-    // let (update_duration, update_avg_time, update_throughput) =
-    //     run_benchmark(client, "update", count, key_type).await?;
-    // results.push(("update".to_string(), update_duration, update_avg_time, update_throughput));
+    //let (update_duration, update_avg_time, update_throughput) =
+    //    run_benchmark(client, "update", count).await?;
+    //results.push(("update".to_string(), update_duration, update_avg_time, update_throughput));
 
-    // let (delete_duration, delete_avg_time, delete_throughput) =
-    //     run_benchmark(client, "delete", count, key_type).await?;
-    // results.push(("delete".to_string(), delete_duration, delete_avg_time, delete_throughput));
+    //let (delete_duration, delete_avg_time, delete_throughput) =
+    //    run_benchmark(client, "delete", count).await?;
+    //results.push(("delete".to_string(), delete_duration, delete_avg_time, delete_throughput));
 
-    // let (scan_duration, scan_avg_time, scan_throughput) =
-    //     run_benchmark(client, "scan", count, key_type).await?;
-    // results.push(("scan".to_string(), scan_duration, scan_avg_time, scan_throughput));
+    //let (scan_duration, scan_avg_time, scan_throughput) =
+    //    run_benchmark(client, "scan", count).await?;
+    //results.push(("scan".to_string(), scan_duration, scan_avg_time, scan_throughput));
 
+    /*
     let (bulk_create_duration, bulk_create_avg_time, bulk_create_throughput) =
         run_benchmark(client, "bulk_create", count, KeyType::U32).await?;
     results.push((
@@ -283,6 +138,7 @@ async fn run_all_benchmarks(
         huge_traversal_avg_time,
         huge_traversal_throughput,
     ));
+    */
 
     Ok(results)
 }
@@ -294,13 +150,6 @@ fn database_name(database: Database) -> &'static str {
     }
 }
 
-fn key_type_name(key_type: KeyType) -> &'static str {
-    match key_type {
-        KeyType::U32 => "u32",
-        KeyType::String => "string",
-    }
-}
-
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -309,16 +158,9 @@ async fn main() -> Result<()> {
         Commands::Bench {
             operation,
             count,
-            key_type,
             database,
             endpoint,
         } => {
-            let key_type = match key_type.to_lowercase().as_str() {
-                "u32" => KeyType::U32,
-                "string" => KeyType::String,
-                _ => return Err(anyhow::anyhow!("Invalid key type: {}", key_type)),
-            };
-
             let database = match database.to_lowercase().as_str() {
                 "helixdb" => Database::HelixDB,
                 "neo4j" => Database::Neo4j,
@@ -331,15 +173,14 @@ async fn main() -> Result<()> {
                 Database::Neo4j => Box::new(Neo4jEngine::setup(&options).await?),
             };
 
-            let client = engine.create_client().await?;
+            let mut client = engine.create_client().await?;
 
             if operation.to_lowercase() == "all" {
-                let results = run_all_benchmarks(&*client, count, key_type).await?;
+                let results = run_all_benchmarks(&mut *client, count).await?;
                 println!(
-                    "\nBenchmark Results for {} ({} operations, key type: {}):",
+                    "\nBenchmark Results for {} ({} operations):",
                     database_name(database),
                     count,
-                    key_type_name(key_type)
                 );
                 println!("{:-<80}", "");
                 println!(
@@ -358,7 +199,7 @@ async fn main() -> Result<()> {
                 }
             } else {
                 let (duration, avg_time, throughput) =
-                    run_benchmark(&*client, &operation, count, key_type).await?;
+                    run_benchmark(&mut *client, &operation, count).await?;
                 println!(
                     "Benchmark: {} {} operations on {}:\n\
                     Total Time: {:?}\n\

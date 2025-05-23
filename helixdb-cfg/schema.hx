@@ -35,6 +35,5 @@
 // or checkout our GitHub at https://github.com/HelixDB/helix-db
 
 N::Record {
-    id: ID,
     data: String
 }

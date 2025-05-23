@@ -1,15 +1,17 @@
-use std::collections::HashMap;
-
 use crate::types::{Benchmark, BenchmarkClient, BenchmarkEngine, Projection, Scan};
 use crate::utils::extract_string_field;
 use anyhow::Result;
 use async_trait::async_trait;
 use reqwest::Client;
 use serde_json::{Value, json};
+use uuid::Uuid;
+use indicatif::{ProgressBar, ProgressStyle};
+use std::time::Duration;
 
 pub struct Neo4jClient {
     endpoint: String,
     client: Client,
+    ids: Vec<Uuid>,
 }
 
 impl Neo4jClient {
@@ -17,6 +19,7 @@ impl Neo4jClient {
         Self {
             endpoint,
             client: Client::new(),
+            ids: Vec::new(),
         }
     }
 
@@ -47,57 +50,105 @@ impl BenchmarkClient for Neo4jClient {
         Ok(())
     }
 
-    async fn create_u32(&self, key: u32, val: Value) -> Result<()> {
-        let data = extract_string_field(&val)?;
+    async fn create_records(&mut self, count: usize) -> Result<()> {
+        let pb = ProgressBar::new(count as u64);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Create")
+                .unwrap()
+                .progress_chars("##-"),
+        );
+        self.ids.extend((0..count).map(|_| Uuid::new_v4()));
         let query = "CREATE (n:Record {id: $id, data: $data})";
-        let params = json!({"id": key.to_string(), "data": data});
-        self.execute_cypher(query, params).await?;
-        Ok(())
-    }
-
-    async fn create_string(&self, key: String, val: Value) -> Result<()> {
-        let data = extract_string_field(&val)?;
-        let query = "CREATE (n:Record {id: $id, data: $data})";
-        let params = json!({"id": key, "data": data});
-        self.execute_cypher(query, params).await?;
-        Ok(())
-    }
-
-    /**
-         * ub fn insert(input: &HandlerInput, response: &mut Response) -> Result<(), GraphError> {
-        let mut remapping_vals: RefCell<HashMap<String, ResponseRemapping>> =
-            RefCell::new(HashMap::new());
-        let db = Arc::clone(&input.graph.storage);
-        let mut txn = db.graph_env.write_txn().unwrap();
-
-        let mut nodes = Vec::with_capacity(400_000);
-        for i in 0..400_000 {
-            let node = db
-                .create_node(&mut txn, "person", props! { "name" => i}, None, None)
-                .unwrap();
-            nodes.push(node);
-
-            for _ in 0..3 {
-                let random_node = &nodes[rand::rng().random_range(0..nodes.len())];
-                db
-                    .create_edge(
-                        &mut txn,
-                        "knows",
-                        &nodes[i as usize].id,
-                        &random_node.id,
-                        props!(),
-                    )
-                    .unwrap();
-            }
-            if i % 1000 == 0 {
-                println!("created {} nodes", i);
-            }
+        for k in self.ids.clone().into_iter() {
+            let params = json!({"id": k.to_string(), "data": "test_value"});
+            self.execute_cypher(query, params).await?;
+            pb.inc(1);
         }
-        txn.commit()?;
+        pb.finish_with_message("Create complete");
         Ok(())
     }
 
-         */
+    async fn read_records(&self) -> Result<()> {
+        let pb = ProgressBar::new(self.ids.len() as u64);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Read")
+                .unwrap()
+                .progress_chars("##-"),
+        );
+        let query = "MATCH (n:Record {id: $id}) RETURN n";
+        for k in self.ids.clone().into_iter() {
+            let params = json!({"id": k.to_string()});
+            self.execute_cypher(query, params).await?;
+            pb.inc(1);
+        }
+        pb.finish_with_message("Read complete");
+        Ok(())
+    }
+
+    async fn update_records(&self) -> Result<()> {
+        let pb = ProgressBar::new(self.ids.len() as u64);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Update")
+                .unwrap()
+                .progress_chars("##-"),
+        );
+        for k in self.ids.clone().into_iter() {
+            let query = "MATCH (n:Record {id: $id}) SET n.data = $data";
+            let params = json!({"id": k.to_string(), "data": "updated_value"});
+            self.execute_cypher(query, params).await?;
+            pb.inc(1);
+        }
+        pb.finish_with_message("Update complete");
+        Ok(())
+    }
+
+    async fn delete_records(&self) -> Result<()> {
+        let pb = ProgressBar::new(self.ids.len() as u64);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Delete")
+                .unwrap()
+                .progress_chars("##-"),
+        );
+        let query = "MATCH (n:Record {id: $id}) DELETE n";
+        for k in self.ids.clone().into_iter() {
+            let params = json!({"id": k.to_string()});
+            self.execute_cypher(query, params).await?;
+            pb.inc(1);
+        }
+        pb.finish_with_message("Delete complete");
+        Ok(())
+    }
+
+    async fn scan_records(&self) -> Result<()> {
+        let count = self.ids.len();
+        let pb = ProgressBar::new_spinner();
+        pb.set_style(
+            ProgressStyle::default_spinner()
+                .template("{spinner:.green} [{elapsed_precise}] Running scan...")
+                .unwrap(),
+        );
+        pb.enable_steady_tick(Duration::from_millis(100));
+        let scan = Scan::new(Some(count), None, Projection::Full);
+        let _ = self.scan(&scan).await;
+        pb.finish_with_message("Scan complete");
+        Ok(())
+    }
+
+    async fn count_records(&self) -> Result<usize> {
+        let query = "MATCH (n) RETURN count(n) as count";
+        let params = json!({});
+        let response = self.execute_cypher(query, params).await?;
+        println!("Count records result: {:?}", response);
+        Ok(response["results"][0]["data"][0]["row"][0]
+            .as_u64()
+            .unwrap_or(0) as usize)
+    }
+
+    /*
     async fn bulk_create_string(&self, count: usize, val: Value) -> Result<()> {
         let data = extract_string_field(&val)?;
         let query = "
@@ -117,35 +168,6 @@ impl BenchmarkClient for Neo4jClient {
         Ok(())
     }
 
-
-    /**
-    * let traversal = G::new(Arc::clone(&db), &txn)
-           .n()
-           .out_e("knows")
-           .to_n()
-           .out("knows")
-           .filter_ref(|val, _| {
-               if let Ok(TraversalVal::Node(node)) = val {
-                   if let Some(value) = node.check_property("name") {
-                       match value {
-                           Value::I32(name) => return *name < 1000,
-                           _ => return false,
-                       }
-                   } else {
-                       return false;
-                   }
-               } else {
-                   return false;
-               }
-           })
-           .out("knows")
-           .out("knows")
-           .out("knows")
-           .out("knows")
-           .dedup()
-           .range(0, 100)
-           .collect_to::<Vec<_>>();
-    */
     async fn huge_traversal(&self, count: usize) -> Result<()> {
         let query = r#"
         MATCH (start:Record)
@@ -161,69 +183,7 @@ impl BenchmarkClient for Neo4jClient {
         println!("Huge traversal result: {:?}", response);
         Ok(())
     }
-
-    async fn read_u32(&self, key: u32) -> Result<()> {
-        let query = "MATCH (n:Record {id: $id}) RETURN n";
-        let params = json!({"id": key.to_string()});
-        self.execute_cypher(query, params).await?;
-        Ok(())
-    }
-
-    async fn read_string(&self, key: String) -> Result<()> {
-        let query = "MATCH (n:Record {id: $id}) RETURN n";
-        let params = json!({"id": key});
-        self.execute_cypher(query, params).await?;
-        Ok(())
-    }
-
-    async fn update_u32(&self, key: u32, val: Value) -> Result<()> {
-        let data = extract_string_field(&val)?;
-        let query = "MATCH (n:Record {id: $id}) SET n.data = $data";
-        let params = json!({"id": key.to_string(), "data": data});
-        self.execute_cypher(query, params).await?;
-        Ok(())
-    }
-
-    async fn update_string(&self, key: String, val: Value) -> Result<()> {
-        let data = extract_string_field(&val)?;
-        let query = "MATCH (n:Record {id: $id}) SET n.data = $data";
-        let params = json!({"id": key, "data": data});
-        self.execute_cypher(query, params).await?;
-        Ok(())
-    }
-
-    async fn delete_u32(&self, key: u32) -> Result<()> {
-        let query = "MATCH (n:Record {id: $id}) DELETE n";
-        let params = json!({"id": key.to_string()});
-        self.execute_cypher(query, params).await?;
-        Ok(())
-    }
-
-    async fn delete_string(&self, key: String) -> Result<()> {
-        let query = "MATCH (n:Record {id: $id}) DELETE n";
-        let params = json!({"id": key});
-        self.execute_cypher(query, params).await?;
-        Ok(())
-    }
-    
-
-    async fn scan_u32(&self, scan: &Scan) -> Result<usize> {
-        self.scan(scan).await
-    }
-
-    async fn scan_string(&self, scan: &Scan) -> Result<usize> {
-        self.scan(scan).await
-    }
-
-    async fn count_records(&self) -> Result<usize> {
-        let query = "MATCH (n) RETURN count(n) as count";
-        let params = json!({});
-        let response = self.execute_cypher(query, params).await?;
-        println!("Count records result: {:?}", response);
-        Ok(response["results"][0]["data"][0]["row"][0]
-            .as_u64()
-            .unwrap_or(0) as usize)
-    }
+    */
 }
 
 impl Neo4jClient {

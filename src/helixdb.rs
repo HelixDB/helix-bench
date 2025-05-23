@@ -1,16 +1,17 @@
-use std::collections::HashMap;
-
 use crate::types::{Benchmark, BenchmarkClient, BenchmarkEngine, Projection, Scan};
 use crate::utils::extract_string_field;
 use anyhow::Result;
 use async_trait::async_trait;
 use reqwest::Client;
-use serde_json::{json, Number, Value};
+use serde_json::{json, Value};
+use uuid::Uuid;
+use indicatif::{ProgressBar, ProgressStyle};
+use std::time::Duration;
 
 struct HelixDBClient {
     endpoint: String,
     client: Client,
-    id_mapping: HashMap<u32, String>,
+    ids: Vec<Uuid>,
 }
 
 impl HelixDBClient {
@@ -18,7 +19,7 @@ impl HelixDBClient {
         Self {
             endpoint,
             client: Client::new(),
-            id_mapping: HashMap::new(),
+            ids: Vec::new(),
         }
     }
 
@@ -50,28 +51,108 @@ impl HelixDBClient {
 #[async_trait]
 impl BenchmarkClient for HelixDBClient {
     async fn startup(&self) -> Result<()> {
-        // No specific startup needed; assume server is running
+        Ok(()) // no specific startup needed; assume server is running
+    }
+
+    async fn create_records(&mut self, count: usize) -> Result<()> {
+        let pb = ProgressBar::new(count as u64);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Create")
+                .unwrap()
+                .progress_chars("##-"),
+        );
+        for _ in 0..count {
+            let res = self
+                .make_request("POST", "/create_record", Some(json!({"data": "test_value"})))
+                .await?;
+            //ids.push(res.)
+            println!("res: {:?}", res);
+            pb.inc(1);
+        }
+        pb.finish_with_message("Create complete");
         Ok(())
     }
 
-    async fn create_u32(&self, key: u32, val: Value) -> Result<()> {
-        let data = extract_string_field(&val)?;
-        let body = json!({"id": key.to_string(), "data": data});
+    async fn read_records(&self) -> Result<()> {
+        let pb = ProgressBar::new(self.ids.len() as u64);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Read")
+                .unwrap()
+                .progress_chars("##-"),
+        );
+        for k in self.ids.clone().into_iter() {
+            let body = json!({"id": k.to_string()});
+            let res = self.make_request("POST", "/read_record", Some(body))
+                .await?;
+            //println!("res: {:?}", res);
+            pb.inc(1);
+        }
+        pb.finish_with_message("Read complete");
+        Ok(())
+    }
+
+    async fn update_records(&self) -> Result<()> {
+        let pb = ProgressBar::new(self.ids.len() as u64);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Update")
+                .unwrap()
+                .progress_chars("##-"),
+        );
+        for k in self.ids.clone().into_iter() {
+            let body = json!({"id": k.to_string(), "data": "updated_value"});
+            self.make_request("POST", "/update_record", Some(body))
+                .await?;
+            pb.inc(1);
+        }
+        pb.finish_with_message("Update complete");
+        Ok(())
+    }
+
+    async fn delete_records(&self) -> Result<()> {
+        let pb = ProgressBar::new(self.ids.len() as u64);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Delete")
+                .unwrap()
+                .progress_chars("##-"),
+        );
+        for k in self.ids.clone().into_iter() {
+            let body = json!({"id": k.to_string()});
+            self.make_request("POST", "/delete_record", Some(body))
+                .await?;
+            pb.inc(1);
+        }
+        pb.finish_with_message("Delete complete");
+        Ok(())
+    }
+
+    async fn scan_records(&self) -> Result<()> {
+        let count = self.ids.len();
+        let pb = ProgressBar::new_spinner();
+        pb.set_style(
+            ProgressStyle::default_spinner()
+                .template("{spinner:.green} [{elapsed_precise}] Running scan...")
+                .unwrap(),
+        );
+        pb.enable_steady_tick(Duration::from_millis(100));
+        let scan = Scan::new(Some(count), None, Projection::Full);
+        let _ = self.scan(&scan).await;
+        pb.finish_with_message("Scan complete");
+        Ok(())
+    }
+
+    async fn count_records(&self) -> Result<usize> {
         let res = self
-            .make_request("POST", "/create_record", Some(body))
+            .make_request("POST", "/count_records", None)
             .await?;
-        Ok(())
+        let count = res.get("count").unwrap();
+        Ok(count.as_u64().unwrap_or(0) as usize)
     }
 
-    async fn create_string(&self, key: String, val: Value) -> Result<()> {
-        let data = extract_string_field(&val)?;
-        let body = json!({"id": key, "data": data});
-        let res = self
-            .make_request("POST", "/create_record", Some(body))
-            .await?;
-        Ok(())
-    }
-
+    /*
     async fn bulk_create_string(&self, count: usize, val: Value) -> Result<()> {
         let data = extract_string_field(&val)?;
         let body = json!({"count": count, "data": data});
@@ -90,68 +171,7 @@ impl BenchmarkClient for HelixDBClient {
         println!("Huge traversal result: {:?}", res);
         Ok(())
     }
-
-    async fn read_u32(&self, key: u32) -> Result<()> {
-        let body = json!({"id": key.to_string()});
-        let res = self
-            .make_request("POST", "/read_record", Some(body))
-            .await?;
-        Ok(())
-    }
-
-    async fn read_string(&self, key: String) -> Result<()> {
-        let body = json!({"id": key});
-        self.make_request("POST", "/read_record", Some(body))
-            .await?;
-        Ok(())
-    }
-
-    async fn update_u32(&self, key: u32, val: Value) -> Result<()> {
-        let data = extract_string_field(&val)?;
-        let body = json!({"id": key.to_string(), "data": data});
-        self.make_request("POST", "/update_record", Some(body))
-            .await?;
-        Ok(())
-    }
-
-    async fn update_string(&self, key: String, val: Value) -> Result<()> {
-        let data = extract_string_field(&val)?;
-        let body = json!({"id": key, "data": data});
-        self.make_request("POST", "/update_record", Some(body))
-            .await?;
-        Ok(())
-    }
-
-    async fn delete_u32(&self, key: u32) -> Result<()> {
-        let body = json!({"id": key.to_string()});
-        self.make_request("POST", "/delete_record", Some(body))
-            .await?;
-        Ok(())
-    }
-
-    async fn delete_string(&self, key: String) -> Result<()> {
-        let body = json!({"id": key});
-        self.make_request("POST", "/delete_record", Some(body))
-            .await?;
-        Ok(())
-    }
-
-    async fn scan_u32(&self, scan: &Scan) -> Result<usize> {
-        self.scan(scan).await
-    }
-
-    async fn scan_string(&self, scan: &Scan) -> Result<usize> {
-        self.scan(scan).await
-    }
-
-    async fn count_records(&self) -> Result<usize> {
-        let res = self
-            .make_request("POST", "/count_records", None)
-            .await?;
-        // get count field from res
-        let count = res.get("count").unwrap();
-        Ok(count.as_u64().unwrap_or(0) as usize)
-    }
+    */
 }
 
 impl HelixDBClient {
