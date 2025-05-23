@@ -1,5 +1,4 @@
 use crate::types::{Benchmark, BenchmarkClient, BenchmarkEngine, Projection, Scan};
-use crate::utils::extract_string_field;
 use anyhow::Result;
 use async_trait::async_trait;
 use reqwest::Client;
@@ -66,8 +65,13 @@ impl BenchmarkClient for HelixDBClient {
             let res = self
                 .make_request("POST", "/create_record", Some(json!({"data": "test_value"})))
                 .await?;
-            //ids.push(res.)
-            println!("res: {:?}", res);
+            self.ids.push(
+                res["record"][0]["id"]
+                .as_str()
+                .expect("ID is not a string")
+                .parse::<Uuid>()
+                .expect("Failed to parse UUID")
+            );
             pb.inc(1);
         }
         pb.finish_with_message("Create complete");
@@ -84,9 +88,8 @@ impl BenchmarkClient for HelixDBClient {
         );
         for k in self.ids.clone().into_iter() {
             let body = json!({"id": k.to_string()});
-            let res = self.make_request("POST", "/read_record", Some(body))
+            let _ = self.make_request("POST", "/read_record", Some(body))
                 .await?;
-            //println!("res: {:?}", res);
             pb.inc(1);
         }
         pb.finish_with_message("Read complete");

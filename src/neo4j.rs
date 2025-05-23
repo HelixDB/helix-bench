@@ -1,5 +1,4 @@
 use crate::types::{Benchmark, BenchmarkClient, BenchmarkEngine, Projection, Scan};
-use crate::utils::extract_string_field;
 use anyhow::Result;
 use async_trait::async_trait;
 use reqwest::Client;

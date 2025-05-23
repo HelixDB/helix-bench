@@ -1,13 +1,11 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use serde_json::json;
 use std::time::{Duration, Instant};
 use tokio;
 
 mod helixdb;
 mod neo4j;
 mod types;
-mod utils;
 
 use crate::helixdb::HelixDBEngine;
 use crate::neo4j::Neo4jEngine;
@@ -104,21 +102,21 @@ async fn run_all_benchmarks(
         run_benchmark(client, "create", count).await?;
     results.push(("create".to_string(), create_duration, create_avg_time, create_throughput));
 
-    //let (read_duration, read_avg_time, read_throughput) =
-    //    run_benchmark(client, "read", count).await?;
-    //results.push(("read".to_string(), read_duration, read_avg_time, read_throughput));
+    let (read_duration, read_avg_time, read_throughput) =
+        run_benchmark(client, "read", count).await?;
+    results.push(("read".to_string(), read_duration, read_avg_time, read_throughput));
 
-    //let (update_duration, update_avg_time, update_throughput) =
-    //    run_benchmark(client, "update", count).await?;
-    //results.push(("update".to_string(), update_duration, update_avg_time, update_throughput));
+    let (update_duration, update_avg_time, update_throughput) =
+        run_benchmark(client, "update", count).await?;
+    results.push(("update".to_string(), update_duration, update_avg_time, update_throughput));
 
     //let (delete_duration, delete_avg_time, delete_throughput) =
     //    run_benchmark(client, "delete", count).await?;
     //results.push(("delete".to_string(), delete_duration, delete_avg_time, delete_throughput));
 
-    //let (scan_duration, scan_avg_time, scan_throughput) =
-    //    run_benchmark(client, "scan", count).await?;
-    //results.push(("scan".to_string(), scan_duration, scan_avg_time, scan_throughput));
+    let (scan_duration, scan_avg_time, scan_throughput) =
+        run_benchmark(client, "scan", count).await?;
+    results.push(("scan".to_string(), scan_duration, scan_avg_time, scan_throughput));
 
     /*
     let (bulk_create_duration, bulk_create_avg_time, bulk_create_throughput) =
