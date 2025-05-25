@@ -183,7 +183,7 @@ impl BenchmarkClient for HelixDBClient {
         let pb = ProgressBar::new(count as u64);
         pb.set_style(
             ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Create vectors")
+                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Search vectors")
                 .unwrap()
                 .progress_chars("##-"),
         );

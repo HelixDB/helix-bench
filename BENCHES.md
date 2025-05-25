@@ -12,6 +12,7 @@ read          | 3.060539084s    | 0.306054
 update        | 53.162571583s   | 5.316257
 scan          | 134.95025ms     | 0.013495
 create_vector | 149.251845084s  | 14.925185
+search_vector | 29.439508583s   | 2.943951
 ```
 - search (total, per search)
 - batch_insert (total)
