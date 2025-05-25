@@ -164,7 +164,7 @@ impl BenchmarkClient for HelixDBClient {
         let pb = ProgressBar::new(count as u64);
         pb.set_style(
             ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Create")
+                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Create vectors")
                 .unwrap()
                 .progress_chars("##-"),
         );
@@ -172,6 +172,25 @@ impl BenchmarkClient for HelixDBClient {
         for vec in rnd_vectors {
             let _ = self
                 .make_request("POST", "/create_vector", Some(json!({"vec": vec})))
+                .await?;
+            pb.inc(1);
+        }
+        pb.finish_with_message("Create complete");
+        Ok(())
+    }
+
+    async fn search_vectors(&self, count: usize) -> Result<()> {
+        let pb = ProgressBar::new(count as u64);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Create vectors")
+                .unwrap()
+                .progress_chars("##-"),
+        );
+        let rnd_vectors = generate_random_vectors(count, 768);
+        for vec in rnd_vectors {
+            let _ = self
+                .make_request("POST", "/search_vector", Some(json!({"query": vec, "k": 7})))
                 .await?;
             pb.inc(1);
         }

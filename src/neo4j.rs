@@ -148,6 +148,7 @@ impl BenchmarkClient for Neo4jClient {
     }
 
     async fn create_vectors(&self, count: usize) -> Result<()> { Ok(()) }
+    async fn search_vectors(&self, count: usize) -> Result<()> { Ok(()) }
 
     /*
     async fn bulk_create_string(&self, count: usize, val: Value) -> Result<()> {

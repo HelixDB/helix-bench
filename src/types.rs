@@ -54,6 +54,7 @@ pub trait BenchmarkClient {
     async fn scan_records(&self) -> Result<()>;
     async fn count_records(&self) -> Result<usize>;
     async fn create_vectors(&self, count: usize) -> Result<()>;
+    async fn search_vectors(&self, count: usize) -> Result<()>;
 
     //async fn bulk_create(&self, count: usize) -> Result<()>;
     //async fn huge_traversal(&self, count: usize) -> Result<()>;

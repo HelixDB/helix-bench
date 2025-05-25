@@ -28,3 +28,13 @@ QUERY count_records() =>
 QUERY create_vector(vec: [F64]) =>
     AddV<Embedding>(vec)
     RETURN "SUCCESS"
+
+QUERY search_vector(query: [F64], k: I32) =>
+    vec <- SearchV<Embedding>(query, k)
+    RETURN vec
+
+//QUERY bulk_add(data: [String]) =>
+//    FOR d IN data {
+//        AddN<Record>({ data: d })
+//    }
+//    RETURN "SUCCESS"

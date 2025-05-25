@@ -52,6 +52,8 @@ async fn run_benchmark(
         "update" => client.update_records().await?,
         "delete" => client.delete_records().await?,
         "scan" => client.scan_records().await?,
+        "create_vectors" => client.create_vectors(count).await?,
+        "search_vectors" => client.search_vectors(count).await?,
         _ => return Err(anyhow::anyhow!("Unsupported operation: {}", operation)),
 
         /*
@@ -99,39 +101,39 @@ async fn run_all_benchmarks(
 ) -> Result<Vec<(String, Duration, f64, f64)>> {
     let mut results = Vec::new();
 
-    let (create_duration, create_avg_time, create_throughput) =
-        run_benchmark(client, "create", count).await?;
-    results.push(("create".to_string(), create_duration, create_avg_time, create_throughput));
+    //let (create_duration, create_avg_time, create_throughput) =
+    //    run_benchmark(client, "create", count).await?;
+    //results.push(("create".to_string(), create_duration, create_avg_time, create_throughput));
 
-    let (read_duration, read_avg_time, read_throughput) =
-        run_benchmark(client, "read", count).await?;
-    results.push(("read".to_string(), read_duration, read_avg_time, read_throughput));
+    //let (read_duration, read_avg_time, read_throughput) =
+    //    run_benchmark(client, "read", count).await?;
+    //results.push(("read".to_string(), read_duration, read_avg_time, read_throughput));
 
-    let (update_duration, update_avg_time, update_throughput) =
-        run_benchmark(client, "update", count).await?;
-    results.push(("update".to_string(), update_duration, update_avg_time, update_throughput));
+    //let (update_duration, update_avg_time, update_throughput) =
+    //    run_benchmark(client, "update", count).await?;
+    //results.push(("update".to_string(), update_duration, update_avg_time, update_throughput));
 
     //let (delete_duration, delete_avg_time, delete_throughput) =
     //    run_benchmark(client, "delete", count).await?;
     //results.push(("delete".to_string(), delete_duration, delete_avg_time, delete_throughput));
 
-    let (scan_duration, scan_avg_time, scan_throughput) =
-        run_benchmark(client, "scan", count).await?;
-    results.push(("scan".to_string(), scan_duration, scan_avg_time, scan_throughput));
+    //let (scan_duration, scan_avg_time, scan_throughput) =
+    //    run_benchmark(client, "scan", count).await?;
+    //results.push(("scan".to_string(), scan_duration, scan_avg_time, scan_throughput));
 
-    let (bulk_create_duration, bulk_create_avg_time, bulk_create_throughput) =
-        run_benchmark(client, "bulk_create", count).await?;
-    results.push(("bulk_create".to_string(), bulk_create_duration, bulk_create_avg_time, bulk_create_throughput));
+    //let (create_vectors_duration, create_vectors_avg_time, create_vectors_throughput) =
+    //    run_benchmark(client, "create_vectors", count).await?;
+    //results.push(("create_vectors".to_string(), create_vectors_duration, create_vectors_avg_time, create_vectors_throughput));
+
+    let (search_vectors_duration, search_vectors_avg_time, search_vectors_throughput) =
+        run_benchmark(client, "search_vectors", count).await?;
+    results.push(("search_vector".to_string(), search_vectors_duration, search_vectors_avg_time, search_vectors_throughput));
+
+    //let (bulk_create_duration, bulk_create_avg_time, bulk_create_throughput) =
+    //    run_benchmark(client, "bulk_create", count).await?;
+    //results.push(("bulk_create".to_string(), bulk_create_duration, bulk_create_avg_time, bulk_create_throughput));
 
     /*
-    let (bulk_create_duration, bulk_create_avg_time, bulk_create_throughput) =
-        run_benchmark(client, "bulk_create", count, KeyType::U32).await?;
-    results.push((
-        "bulk_create".to_string(),
-        bulk_create_duration,
-        bulk_create_avg_time,
-        bulk_create_throughput,
-    ));
 
     let (huge_traversal_duration, huge_traversal_avg_time, huge_traversal_throughput) =
         run_benchmark(client, "huge_traversal", count, KeyType::U32).await?;
