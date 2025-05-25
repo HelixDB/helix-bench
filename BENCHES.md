@@ -39,7 +39,7 @@ Average time per search (total/num_vectors): 11.181567ms
 Average search time per query (measured individually): 11.177712ms
 ```
 
-#### Neo4j (via http server)
+### Neo4j (via http server)
 ```
 Benchmark Results for Neo4j (10000 operations, key type: u32):
 --------------------------------------------------------------------------------
