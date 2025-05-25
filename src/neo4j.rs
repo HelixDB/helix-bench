@@ -61,7 +61,7 @@ impl BenchmarkClient for Neo4jClient {
         let query = "CREATE (n:Record {id: $id, data: $data})";
         for k in self.ids.clone().into_iter() {
             let params = json!({"id": k.to_string(), "data": "test_value"});
-            self.execute_cypher(query, params).await?;
+            let _ = self.execute_cypher(query, params).await?;
             pb.inc(1);
         }
         pb.finish_with_message("Create complete");
@@ -146,6 +146,8 @@ impl BenchmarkClient for Neo4jClient {
             .as_u64()
             .unwrap_or(0) as usize)
     }
+
+    async fn create_vectors(&self, count: usize) -> Result<()> { Ok(()) }
 
     /*
     async fn bulk_create_string(&self, count: usize, val: Value) -> Result<()> {

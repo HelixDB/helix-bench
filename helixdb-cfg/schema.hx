@@ -37,3 +37,7 @@
 N::Record {
     data: String
 }
+
+V::Embedding {
+    vec: [F64]
+}

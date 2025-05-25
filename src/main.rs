@@ -6,6 +6,7 @@ use tokio;
 mod helixdb;
 mod neo4j;
 mod types;
+mod utils;
 
 use crate::helixdb::HelixDBEngine;
 use crate::neo4j::Neo4jEngine;
@@ -117,6 +118,10 @@ async fn run_all_benchmarks(
     let (scan_duration, scan_avg_time, scan_throughput) =
         run_benchmark(client, "scan", count).await?;
     results.push(("scan".to_string(), scan_duration, scan_avg_time, scan_throughput));
+
+    let (bulk_create_duration, bulk_create_avg_time, bulk_create_throughput) =
+        run_benchmark(client, "bulk_create", count).await?;
+    results.push(("bulk_create".to_string(), bulk_create_duration, bulk_create_avg_time, bulk_create_throughput));
 
     /*
     let (bulk_create_duration, bulk_create_avg_time, bulk_create_throughput) =

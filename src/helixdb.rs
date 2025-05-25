@@ -1,4 +1,7 @@
-use crate::types::{Benchmark, BenchmarkClient, BenchmarkEngine, Projection, Scan};
+use crate::{
+    types::{Benchmark, BenchmarkClient, BenchmarkEngine, Projection, Scan},
+    utils::*,
+};
 use anyhow::Result;
 use async_trait::async_trait;
 use reqwest::Client;
@@ -151,14 +154,34 @@ impl BenchmarkClient for HelixDBClient {
         let res = self
             .make_request("POST", "/count_records", None)
             .await?;
-        let count = res.get("count").unwrap();
-        Ok(count.as_u64().unwrap_or(0) as usize)
+        println!("res: {:?}", res);
+        Ok(0)
+        //let count = res.get("count").unwrap();
+        //Ok(count.as_u64().unwrap_or(0) as usize)
+    }
+
+    async fn create_vectors(&self, count: usize) -> Result<()> {
+        let pb = ProgressBar::new(count as u64);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({eta}) Create")
+                .unwrap()
+                .progress_chars("##-"),
+        );
+        let rnd_vectors = generate_random_vectors(count, 768);
+        for vec in rnd_vectors {
+            let _ = self
+                .make_request("POST", "/create_vector", Some(json!({"vec": vec})))
+                .await?;
+            pb.inc(1);
+        }
+        pb.finish_with_message("Create complete");
+        Ok(())
     }
 
     /*
-    async fn bulk_create_string(&self, count: usize, val: Value) -> Result<()> {
-        let data = extract_string_field(&val)?;
-        let body = json!({"count": count, "data": data});
+    async fn bulk_create(&self, count: usize) -> Result<()> {
+        let body = json!({"count": count, "data": "test_value"});
         let res = self
             .make_request("POST", "/insert", Some(body))
             .await?;

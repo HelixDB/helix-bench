@@ -1,6 +1,5 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use serde_json::Value;
 
 // Represents the database to benchmark
 #[derive(Clone, Copy, PartialEq)]
@@ -54,8 +53,9 @@ pub trait BenchmarkClient {
     async fn delete_records(&self) -> Result<()>;
     async fn scan_records(&self) -> Result<()>;
     async fn count_records(&self) -> Result<usize>;
+    async fn create_vectors(&self, count: usize) -> Result<()>;
 
-    //async fn bulk_create_string(&self, count: usize, val: Value) -> Result<()>;
+    //async fn bulk_create(&self, count: usize) -> Result<()>;
     //async fn huge_traversal(&self, count: usize) -> Result<()>;
 }
 

@@ -24,3 +24,7 @@ QUERY scan_records(limit: I32, offset: I32) =>
 QUERY count_records() =>
     count <- N<Record>::COUNT
     RETURN count
+
+QUERY create_vector(vec: [F64]) =>
+    AddV<Embedding>(vec)
+    RETURN "SUCCESS"
