@@ -91,8 +91,9 @@ impl BenchmarkClient for HelixDBClient {
         );
         for k in self.ids.clone().into_iter() {
             let body = json!({"id": k.to_string()});
-            let _ = self.make_request("POST", "/read_record", Some(body))
+            let res = self.make_request("POST", "/read_record", Some(body))
                 .await?;
+            assert!(res["record"][0]["data"] == "test_value", "data is correct");
             pb.inc(1);
         }
         pb.finish_with_message("Read complete");
